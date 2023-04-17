@@ -13,10 +13,10 @@ HRESULT InitDevice();
 void CleanupDevice();
 void Render();
 
-struct SimpleVertex 
+struct SimpleVertex
 {
-	XMFLOAT3 Pos;
-	XMFLOAT4 Color;
+	XMFLOAT3 Position;
+	XMFLOAT2 TexCoord;
 };
 
 HRESULT CompileShaderFromFile
@@ -27,9 +27,15 @@ HRESULT CompileShaderFromFile
 	_Outptr_ ID3DBlob** ppBlobOut // ID3DBlob out
 );
 
-struct ConstantBuffer
+struct CBView
 {
-	XMMATRIX World;
-	XMMATRIX View;
-	XMMATRIX Projection;
+	XMMATRIX mView;
+};
+struct CBProjection
+{
+	XMMATRIX mProjection;
+};
+struct CBWorld
+{
+	XMMATRIX mWorld;
 };

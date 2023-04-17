@@ -1,9 +1,10 @@
 #include "Game.h"
+#include "DDSTextureLoader11.h"
 
 HWND g_hWnd = nullptr;
 HINSTANCE g_hInstance = nullptr;
 LPCWSTR g_pszWindowClassName = L"GGPWindowClass";
-LPCWSTR g_pszWindowName = L"GGP02: Direct3D 11 Basics";
+LPCWSTR g_pszWindowName = L"GGP04: Texture Mapping";
 
 D3D_DRIVER_TYPE			g_driverType = D3D_DRIVER_TYPE_NULL;
 D3D_FEATURE_LEVEL		g_featureLevel = D3D_FEATURE_LEVEL_11_0;
@@ -29,15 +30,19 @@ ID3D11InputLayout*		g_pVertexLayout = nullptr;
 ID3DBlob*				pVertexShaderBlob = nullptr;
 ID3DBlob*				pPixelShaderBlob = nullptr;
 
-ID3D11Buffer*			g_pConstantBuffer = nullptr;
-
-XMMATRIX	g_worldMatrix1;
-XMMATRIX	g_worldMatrix2;
+XMMATRIX	g_worldMatrix;
 XMMATRIX	g_viewMatrix;
 XMMATRIX	g_projectionMatrix;
 
 ID3D11Texture2D*		g_pDepthStencil = nullptr;
 ID3D11DepthStencilView* g_pDepthStencilView = nullptr;
+
+ID3D11ShaderResourceView* g_pTextureRV = nullptr;
+ID3D11SamplerState* g_pSamplerLinear = nullptr;
+
+ID3D11Buffer* g_pCBView = nullptr;
+ID3D11Buffer* g_pCBProjection = nullptr;
+ID3D11Buffer* g_pCBWorld = nullptr;
 
 LRESULT CALLBACK WindowProc(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
@@ -308,7 +313,7 @@ HRESULT InitDevice()
 	D3D11_INPUT_ELEMENT_DESC layouts[] =
 	{
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 	UINT uNumElements = ARRAYSIZE(layouts);
 
@@ -348,24 +353,32 @@ HRESULT InitDevice()
 
 	// 7-1. create vertex buffer
 	// Vertex position structure
-	SimpleVertex sVertices[] = 
+	SimpleVertex sVertices[] =
 	{
-		{.Pos = XMFLOAT3(-1.0f, 1.0f, -1.0f),
-		.Color = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) },
-		{.Pos = XMFLOAT3(1.0f, 1.0f, -1.0f),
-		.Color = XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
-		{.Pos = XMFLOAT3(1.0f, 1.0f, 1.0f),
-		.Color = XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) },
-		{.Pos = XMFLOAT3(-1.0f, 1.0f, 1.0f),
-		.Color = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
-		{.Pos = XMFLOAT3(-1.0f, -1.0f, -1.0f),
-		.Color = XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) },
-		{.Pos = XMFLOAT3(1.0f, -1.0f, -1.0f),
-		.Color = XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
-		{.Pos = XMFLOAT3(1.0f, -1.0f, 1.0f),
-		.Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
-		{.Pos = XMFLOAT3(-1.0f, -1.0f, 1.0f),
-		.Color = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
+		{XMFLOAT3(-1.0f, 1.0f,-1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{XMFLOAT3(1.0f, 1.0f,-1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(1.0f, 1.0f) },
+		{XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(1.0f, 1.0f) },
+		{XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f) },
+		{XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(1.0f, 1.0f) },
+		{XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f) },
+		{XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f) },
+		{XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(1.0f, 1.0f) },
+		{XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(0.0f, 1.0f) },
+		{XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(0.0f, 0.0f) },
+		{XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(1.0f, 0.0f) },
 	};
 
 	// buffer description
@@ -393,16 +406,21 @@ HRESULT InitDevice()
 	WORD sIndices[] = {
 		3,1,0,
 		2,1,3,
-		0,5,4,
-		1,5,0,
-		3,4,7,
-		0,4,3,
-		1,6,5,
-		2,6,1,
-		2,7,6,
-		3,7,2,
+
 		6,4,5,
 		7,4,6,
+
+		11,9,8,
+		10,9,11,
+
+		14,12,13,
+		15,12,14,
+
+		19,17,16,
+		18,17,19,
+
+		22,20,21,
+		23,20,22
 	};
 
 	// buffer description
@@ -449,20 +467,44 @@ HRESULT InitDevice()
 		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST
 	);
 
+	// 10. set texture
+	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"../Library/seafloor.dds", nullptr, &g_pTextureRV);
+	if (FAILED(hr))
+		return hr;
+
+	D3D11_SAMPLER_DESC sampDesc = { };
+	sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	sampDesc.MinLOD = 0;
+	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	hr = g_pd3dDevice->CreateSamplerState(&sampDesc, &g_pSamplerLinear);
+	if (FAILED(hr))
+		return hr;
+
 	// buffer description for constant buffer
 	bd = {};
-	bd.ByteWidth = sizeof(ConstantBuffer);
 	bd.Usage = D3D11_USAGE_DEFAULT;
 	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	bd.CPUAccessFlags = 0;
 
 	// Request D3DDevice to create buffer
-	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pConstantBuffer);
+	bd.ByteWidth = sizeof(CBView);
+	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pCBView);
+	if (FAILED(hr))
+		return hr;
+	bd.ByteWidth = sizeof(CBProjection);
+	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pCBProjection);
+	if (FAILED(hr))
+		return hr;
+	bd.ByteWidth = sizeof(CBWorld);
+	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pCBWorld);
 	if (FAILED(hr))
 		return hr;
 
-	g_worldMatrix1 = XMMatrixIdentity();
-	g_worldMatrix2 = XMMatrixIdentity();
+	g_worldMatrix = XMMatrixIdentity();
 
 	XMVECTOR eye = XMVectorSet(0.0f, 1.0f,-5.0f, 0.0f);
 	XMVECTOR at = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
@@ -531,9 +573,14 @@ void CleanupDevice()
 	if (g_pVertexShader) g_pVertexShader->Release();
 	if (g_pPixelShader) g_pPixelShader->Release();
 
-	if (g_pConstantBuffer) g_pConstantBuffer->Release();
 	if (g_pDepthStencil) g_pDepthStencil->Release();
 	if (g_pDepthStencilView) g_pDepthStencilView->Release();
+
+	if (g_pTextureRV) g_pTextureRV->Release();
+	if (g_pSamplerLinear) g_pSamplerLinear->Release();
+	if (g_pCBView) g_pCBView->Release();
+	if (g_pCBProjection) g_pCBProjection->Release();
+	if (g_pCBWorld) g_pCBWorld->Release();
 }
 
 void Render()
@@ -556,37 +603,26 @@ void Render()
 	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
 	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
-	g_worldMatrix1 = XMMatrixRotationY(t);
+	CBView cbv;         cbv.mView = XMMatrixTranspose(g_viewMatrix);
+	CBProjection cbp;   cbp.mProjection = XMMatrixTranspose(g_projectionMatrix);
+	CBWorld cbw;        cbw.mWorld = XMMatrixTranspose(g_worldMatrix);
 
-	XMMATRIX mSpin = XMMatrixRotationZ(t);
-	XMMATRIX mOrbit = XMMatrixRotationY(t * 2.0f);
-	XMMATRIX mTranslate = XMMatrixTranslation(-3.0f, 0.0f, 0.0f);
-	XMMATRIX mScale = XMMatrixScaling(0.3f, 0.3f, 0.3f);
-	g_worldMatrix2 = mScale * mSpin * mTranslate * mOrbit;
+	g_pImmediateContext->UpdateSubresource(g_pCBView, 0, nullptr, &cbv, 0, 0);
+	g_pImmediateContext->UpdateSubresource(g_pCBProjection, 0, nullptr, &cbp, 0, 0);
+	g_pImmediateContext->UpdateSubresource(g_pCBWorld, 0, nullptr, &cbw, 0, 0);
 
-	// Update variables for the first cube
-	ConstantBuffer cb1;
-	cb1.World = XMMatrixTranspose(g_worldMatrix1);
-	cb1.View = XMMatrixTranspose(g_viewMatrix);
-	cb1.Projection = XMMatrixTranspose(g_projectionMatrix);
-	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb1, 0, 0);
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pTextureRV);
+	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBView);
+	g_pImmediateContext->VSSetConstantBuffers(1, 1, &g_pCBProjection);
+	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pCBWorld);
 
-	// Render the first cube
-	// 1. vertex shader binding
+	g_worldMatrix = XMMatrixRotationY(t);
+
+	// vertex shader binding
 	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
-	// * constant buffer binding
-	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-	// 2. pixel shader binding
+	// pixel shader binding
 	g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
-	// 3. Call Draw method
-	g_pImmediateContext->DrawIndexed(36, 0, 0);
-
-	// Update variables for the second cube
-	ConstantBuffer cb2;
-	cb2.World = XMMatrixTranspose(g_worldMatrix2);
-	cb2.View = XMMatrixTranspose(g_viewMatrix);
-	cb2.Projection = XMMatrixTranspose(g_projectionMatrix);
-	g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cb2, 0, 0);
 	
 	// Call Draw method
 	g_pImmediateContext->DrawIndexed(36, 0, 0);
