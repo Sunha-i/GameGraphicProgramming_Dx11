@@ -1,17 +1,26 @@
-﻿#include "Common.h"
-
-#include "Game/Game.h"
+﻿#include <Common.h>
+#include <Game/Game.h>
 
 INT WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ INT nCmdShow)
 {
-    // Initialization
     if (FAILED(InitWindow(hInstance, nCmdShow)))
         return 0;
+
     if (FAILED(InitDevice()))
     {
         CleanupDevice();
         return 0;
     }
+
+    // Declare Elapse Time variable 
+    LARGE_INTEGER startTime;
+    LARGE_INTEGER endTime;
+    LARGE_INTEGER frequency;
+    LARGE_INTEGER elapsedMsc;
+
+    QueryPerformanceCounter(&startTime);
+    QueryPerformanceFrequency(&frequency);
+
     // Main message loop
     MSG msg = { 0 };
     while (WM_QUIT != msg.message)
@@ -21,12 +30,27 @@ INT WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-        else 
+        else
         {
+            // Calculate Elapse Time every frame
+            QueryPerformanceCounter(&endTime);
+            elapsedMsc.QuadPart = endTime.QuadPart - startTime.QuadPart;
+            elapsedMsc.QuadPart *= 1000000;
+            elapsedMsc.QuadPart /= frequency.QuadPart;
+
+            QueryPerformanceFrequency(&frequency);
+            QueryPerformanceCounter(&startTime);
+
+            FLOAT deltaTime = static_cast<FLOAT>(elapsedMsc.QuadPart) / 1000000.0f;
+
+            HandleInput(deltaTime);
+            Update(deltaTime);
+
             Render();
         }
     }
-    // Destroy
+
     CleanupDevice();
+
     return (int)msg.wParam;
 }
