@@ -1,773 +1,742 @@
-#include "Game.h"
+ï»¿#include "Game.h"
+#include "DDSTextureLoader11.h"
 
-// --------------------------------------------------------------------------------
-// Global variable
-// --------------------------------------------------------------------------------
-HWND						g_hWnd = nullptr;
-HINSTANCE					g_hInstance = nullptr;
+HWND g_hWnd = nullptr;
+HINSTANCE g_hInstance = nullptr;
+LPCWSTR g_pszWindowClassName = L"GGPWindowClass";
+LPCWSTR g_pszWindowName = L"GGP05: Lighting";
+UINT	g_width;
+UINT	g_height;
 
-LPCWSTR						g_pszWindowClassName = L"GGPWindowClass";
-LPCWSTR						g_pszWindowName = L"Assignment 01";
+D3D_DRIVER_TYPE			g_driverType = D3D_DRIVER_TYPE_NULL;
+D3D_FEATURE_LEVEL		g_featureLevel = D3D_FEATURE_LEVEL_11_0;
 
-D3D_DRIVER_TYPE				g_driverType = D3D_DRIVER_TYPE_NULL;
-D3D_FEATURE_LEVEL			g_featureLevel = D3D_FEATURE_LEVEL_11_0;
+// interface for GPU to use D3D
+ID3D11Device* g_pd3dDevice = nullptr;
+ID3D11Device1* g_pd3dDevice1 = nullptr;
+ID3D11DeviceContext* g_pImmediateContext = nullptr;
+ID3D11DeviceContext1* g_pImmediateContext1 = nullptr;
 
-ID3D11Device*               g_pd3dDevice = nullptr;
-ID3D11Device1*              g_pd3dDevice1 = nullptr;
-ID3D11DeviceContext*        g_pImmediateContext = nullptr;
-ID3D11DeviceContext1*       g_pImmediateContext1 = nullptr;
+IDXGISwapChain* g_pSwapChain = nullptr;
+IDXGISwapChain1* g_pSwapChain1 = nullptr;
 
-IDXGISwapChain*             g_pSwapChain = nullptr;
-IDXGISwapChain1*            g_pSwapChain1 = nullptr;
+ID3D11RenderTargetView* g_pRenderTargetView = nullptr;
 
-ID3D11RenderTargetView*     g_pRenderTargetView = nullptr;
+ID3D11VertexShader* g_pVertexShader = nullptr;
+ID3D11PixelShader* g_pPixelShader = nullptr;
 
-ID3D11VertexShader*         g_pVertexShader = nullptr;
-ID3D11PixelShader*          g_pPixelShader = nullptr;
+ID3D11Buffer* g_pVertexBuffer = nullptr;
+ID3D11Buffer* g_pIndexBuffer = nullptr;
 
-ID3D11Buffer*               g_pVertexBuffer = nullptr;
-ID3D11Buffer*               g_pIndexBuffer = nullptr;
+ID3D11InputLayout* g_pVertexLayout = nullptr;
+ID3DBlob* pVertexShaderBlob = nullptr;
+ID3DBlob* pPixelShaderBlob = nullptr;
 
-ID3D11InputLayout*          g_pVertexLayout = nullptr;
+XMMATRIX	g_worldMatrix;
+XMMATRIX	g_viewMatrix;
+XMMATRIX	g_projectionMatrix;
 
-ID3D11Buffer*               g_pConstantBuffer = nullptr;
+ID3D11Texture2D* g_pDepthStencil = nullptr;
+ID3D11DepthStencilView* g_pDepthStencilView = nullptr;
 
-XMMATRIX					g_worldMatrix;
-XMMATRIX					g_viewMatrix;
-XMMATRIX					g_projectionMatrix;
+ID3D11ShaderResourceView* g_pTextureRV = nullptr;
+ID3D11SamplerState* g_pSamplerLinear = nullptr;
 
-ID3D11Texture2D*            g_pDepthStencil = nullptr;
-ID3D11DepthStencilView*     g_pDepthStencilView = nullptr;
+ID3D11Buffer* g_pCBChangeOnCameraMovement = nullptr;
+ID3D11Buffer* g_pCBChangeOnResize = nullptr;
+ID3D11Buffer* g_pCBChangeEveryFrame = nullptr;
+ID3D11Buffer* g_pCBLights = nullptr;
+ID3D11PixelShader* g_pPixelSolidShader = nullptr;
 
-XMVECTOR at;
-XMVECTOR eye;
-XMVECTOR up;
-
-InputDirections g_inputDirections;
-MouseRelativeMovement g_mouseRelativeMovement;
-BOOL g_mouseRightClick;
-
-float camYaw = 0.0f;
-float camPitch = 0.0f;
-float moveDownUp = 0.0f;
-float moveLeftRight = 0.0f;
-float moveBackForward = 0.0f;
-XMVECTOR DefaultForward = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
-XMVECTOR DefaultRight = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
-
-XMMATRIX camRotationMatrix;
-XMVECTOR camPosition = XMVectorSet(0.0f, 1.0f, -5.0f, 0.0f);
-XMVECTOR camTarget = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
-// --------------------------------------------------------------------------------
-// Resister window class, Create window, and Show window
-// --------------------------------------------------------------------------------
-HRESULT InitWindow(_In_ HINSTANCE hInstance, _In_ INT nCmdShow)
-{
-    WNDCLASSEX wcex =
-    {
-        .cbSize = sizeof(WNDCLASSEX),
-        .style = CS_HREDRAW | CS_VREDRAW,
-        .lpfnWndProc = WindowProc,
-        .cbClsExtra = 0,
-        .cbWndExtra = 0,
-        .hInstance = hInstance,
-        .hIcon = LoadIcon(hInstance, (LPCTSTR) IDI_APPLICATION),
-        .hCursor = LoadCursor(nullptr, IDC_ARROW),
-        .hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1),
-        .lpszMenuName = nullptr,
-        .lpszClassName = g_pszWindowClassName,
-        .hIconSm = LoadIcon(wcex.hInstance, (LPCTSTR) IDI_APPLICATION),
-    };
-
-    if (!RegisterClassEx(&wcex))
-    {
-        DWORD dwError = GetLastError();
-
-        MessageBox(
-            nullptr,
-            L"Call to RegisterClassEx failed!",
-            L"Game Graphics Programming",
-            NULL
-        );
-
-        if (dwError != ERROR_CLASS_ALREADY_EXISTS)
-        {
-            return HRESULT_FROM_WIN32(dwError);
-        }
-
-        return E_FAIL;
-    }
-
-    g_hInstance = hInstance;
-    RECT rc = { 0, 0, 800, 600 };
-    AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
-
-    g_hWnd = CreateWindow(
-        g_pszWindowClassName,
-        g_pszWindowName,
-        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
-
-        CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top,
-        nullptr,
-        nullptr,
-        hInstance,
-        nullptr
-    );
-
-    if (!g_hWnd)
-    {
-        DWORD dwError = GetLastError();
-
-        MessageBox(
-            nullptr,
-            L"Call to CreateWindow failed!",
-            L"Game Graphics Programming",
-            NULL
-        );
-
-        if (dwError != ERROR_CLASS_ALREADY_EXISTS)
-        {
-            return HRESULT_FROM_WIN32(dwError);
-        }
-
-        return E_FAIL;
-    }
-
-    ShowWindow(g_hWnd, nCmdShow);
-
-    return S_OK;
-}
-
-// --------------------------------------------------------------------------------
-// Called every time the application recevies a message
-// --------------------------------------------------------------------------------
 LRESULT CALLBACK WindowProc(_In_ HWND hWnd, _In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARAM lParam)
 {
-    switch (uMsg)
-    {
-    case WM_CLOSE:
-        DestroyWindow(hWnd);
+	switch (uMsg)
+	{
+	case WM_SIZE:
+		break;
 
-        return 0;
+	case WM_CLOSE:
+		if (MessageBox(hWnd,
+			L"ì§„ì§œ ì¢…ë£Œí•˜ì‹œê² ìŠµë‹ˆê¹Œ?",
+			L"Game Graphics Programming",
+			MB_OKCANCEL) == IDOK)
+		{
+			DestroyWindow(hWnd);
+		}
+		return 0;
 
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        return 0;
-        
-    // mouse position
-    case WM_INPUT:
-    {
-        UINT dataSize = sizeof(RAWINPUT);
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return 0;
 
-        GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, NULL, &dataSize, sizeof(RAWINPUTHEADER));
-
-        if (dataSize > 0)
-        {
-            std::unique_ptr<BYTE[]> rawdata = std::make_unique<BYTE[]>(dataSize);
-            if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, rawdata.get(), &dataSize, sizeof(RAWINPUTHEADER)) == dataSize)
-            {
-                RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(rawdata.get());
-                if (raw->header.dwType == RIM_TYPEMOUSE)
-                {
-                    g_mouseRelativeMovement.X = raw->data.mouse.lLastX;
-                    g_mouseRelativeMovement.Y = raw->data.mouse.lLastY;
-                }
-            }
-        }
-        return DefWindowProc(hWnd, uMsg, wParam, lParam);
-    }
-
-    // keyboard 
-    case WM_KEYDOWN:
-        switch (wParam)
-        {
-        case 'W':
-            g_inputDirections.bFront = TRUE;
-            return 0;
-        case 'A':
-            g_inputDirections.bLeft = TRUE;
-            return 0;
-        case 'S':
-            g_inputDirections.bBack = TRUE;
-            return 0;
-        case 'D':
-            g_inputDirections.bRight = TRUE;
-            return 0;
-        case 'Q':
-            g_inputDirections.bDown = TRUE;
-            return 0;
-        case 'E':
-            g_inputDirections.bUp = TRUE;
-            return 0;
-        /*case VK_ESCAPE:
-            ClipCursor(NULL);
-            return 0;*/
-        default:
-            break;
-        }
-    case WM_KEYUP:
-        switch (wParam)
-        {
-        case 'W':
-            g_inputDirections.bFront = FALSE;
-            return 0;
-        case 'A':
-            g_inputDirections.bLeft = FALSE;
-            return 0;
-        case 'S':
-            g_inputDirections.bBack = FALSE;
-            return 0;
-        case 'D':
-            g_inputDirections.bRight = FALSE;
-            return 0;
-        case 'Q':
-            g_inputDirections.bDown = FALSE;
-            return 0;
-        case 'E':
-            g_inputDirections.bUp = FALSE;
-            return 0;
-        default:
-            break;
-        }
-
-    // mouse right click
-    case WM_RBUTTONDOWN:
-        g_mouseRightClick = TRUE;
-        return 0;
-
-    case WM_RBUTTONUP:
-        g_mouseRightClick = FALSE;
-        return 0;
-     
-    default:
-        return DefWindowProc(hWnd, uMsg, wParam, lParam);
-    }
-    return 0;
+	default:
+		return DefWindowProc(hWnd, uMsg, wParam, lParam);
+	}
 }
 
-// --------------------------------------------------------------------------------
-// Create D3D devices and swap chain
-// --------------------------------------------------------------------------------
+HRESULT InitWindow(_In_ HINSTANCE hInstance, _In_ INT nCmdShow)
+{
+	// 1. Register the window class
+	WNDCLASSEX wcex =
+	{
+		.cbSize = sizeof(WNDCLASSEX),
+		.style = CS_HREDRAW | CS_VREDRAW,
+		.lpfnWndProc = WindowProc,
+		.cbClsExtra = 0,
+		.cbWndExtra = 0,
+		.hInstance = hInstance,
+		.hIcon = LoadIcon(hInstance,IDI_APPLICATION),
+		.hCursor = LoadCursor(nullptr, IDC_ARROW),
+		.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1),
+		.lpszMenuName = nullptr,
+		.lpszClassName = g_pszWindowClassName,
+		.hIconSm = LoadIcon(wcex.hInstance, IDI_APPLICATION),
+	};
+
+	if (!RegisterClassEx(&wcex))
+	{
+		DWORD dwError = GetLastError();
+		MessageBox(
+			nullptr,
+			L"Call to RegisterClassEx failed!",
+			L"Game Graphics Programming",
+			NULL
+		);
+		if (dwError != ERROR_CLASS_ALREADY_EXISTS)
+		{
+			return HRESULT_FROM_WIN32(dwError);
+		}
+		return E_FAIL;
+	}
+
+	// 2. Create window
+	g_hInstance = hInstance;
+	RECT rc = { 0, 0, 800, 600 };
+	AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
+
+	g_hWnd = CreateWindow(
+		g_pszWindowClassName,
+		g_pszWindowName,
+		WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
+		CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top,
+		nullptr,
+		nullptr,
+		hInstance,
+		nullptr
+	);
+
+	if (!g_hWnd)
+	{
+		DWORD dwError = GetLastError();
+		MessageBox(
+			nullptr,
+			L"Call to CreateWindow failed!",
+			L"Game Graphics Programming",
+			NULL
+		);
+		if (dwError != ERROR_CLASS_ALREADY_EXISTS)
+		{
+			return HRESULT_FROM_WIN32(dwError);
+		}
+		return E_FAIL;
+	}
+
+	// 3. Show window
+	ShowWindow(g_hWnd, nCmdShow);
+
+	return S_OK;
+}
+
 HRESULT InitDevice()
 {
-    HRESULT hr = S_OK;
+	HRESULT hr = S_OK;
 
-    RECT rc;
-    GetClientRect(g_hWnd, &rc);
-    UINT width = rc.right - rc.left;
-    UINT height = rc.bottom - rc.top;
+	RECT rc;
+	GetClientRect(g_hWnd, &rc);
+	g_width = rc.right - rc.left;
+	g_height = rc.bottom - rc.top;
 
-    POINT p1, p2;
-
-    p1.x = rc.left;
-    p1.y = rc.top;
-    p2.x = rc.right;
-    p2.y = rc.bottom;
-
-    ClientToScreen(g_hWnd, &p1);
-    ClientToScreen(g_hWnd, &p2);
-
-    rc.left = p1.x;
-    rc.top = p1.y;
-    rc.right = p2.x;
-    rc.bottom = p2.y;
-
-    ClipCursor(&rc);
-
-    // D2D¿Í D3D¸¦ »óÈ£ ¿î¿ë °¡´ÉÇÏ°Ô ÇØÁÜ.
-    UINT createDeviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+	// 1. Create D3D 11 device & context
+	// 1-1. Create Flags for Debugging
+	UINT createDeviceFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 #ifdef _DEBUG
-    createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+	createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
-
-    D3D_DRIVER_TYPE driverTypes[] =
-    {
-        D3D_DRIVER_TYPE_HARDWARE,
-        D3D_DRIVER_TYPE_WARP,
-        D3D_DRIVER_TYPE_REFERENCE,
-    };
-    UINT numDriverTypes = ARRAYSIZE(driverTypes);
-
-    D3D_FEATURE_LEVEL featureLevels[] =
-    {
-        D3D_FEATURE_LEVEL_11_1,
-        D3D_FEATURE_LEVEL_11_0,
-        D3D_FEATURE_LEVEL_10_1,
-        D3D_FEATURE_LEVEL_10_0,
-    };
-    UINT numFeatureLevels = ARRAYSIZE(featureLevels);
-    
-    for (UINT driverTypeIndex = 0; driverTypeIndex < numDriverTypes; driverTypeIndex++)
-    {
-        g_driverType = driverTypes[driverTypeIndex];
-        hr = D3D11CreateDevice(nullptr, g_driverType, nullptr, createDeviceFlags, featureLevels, numFeatureLevels,
-            D3D11_SDK_VERSION, &g_pd3dDevice, &g_featureLevel, &g_pImmediateContext);
-
-        if (hr == E_INVALIDARG)
-        {
-            // Direct X 11.0¿¡¼­´Â D3D_FEATURE_LEVEL_11_1À» ÀÎ½ÄÇÏÁö ¸øÇÒ ¼ö ÀÖÀ½. ÀÌ °æ¿ì ´Ù½Ã ¸¸µé¾îÁÜ.
-
-            hr = D3D11CreateDevice(nullptr, g_driverType, nullptr, createDeviceFlags, &featureLevels[1], numFeatureLevels - 1,
-                D3D11_SDK_VERSION, &g_pd3dDevice, &g_featureLevel, &g_pImmediateContext);
-        }
-
-        if (SUCCEEDED(hr))
-            break;
-    }
-    if (FAILED(hr))
-        return hr;
-
-    // DXGI Device¸¦ ÅëÇØ DXGI Factory¸¦ ¹Þ¾Æ¿È.
-    IDXGIFactory1* dxgiFactory = nullptr;
-    IDXGIDevice* dxgiDevice = nullptr;
-
-    hr = g_pd3dDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void**>(&dxgiDevice));
-    if (SUCCEEDED(hr))
-    {
-        IDXGIAdapter* adapter = nullptr;
-        hr = dxgiDevice->GetAdapter(&adapter);
-        if (SUCCEEDED(hr))
-        {
-            hr = adapter->GetParent(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&dxgiFactory));
-            adapter->Release();
-        }
-        dxgiDevice->Release();
-    }
-
-    if (FAILED(hr))
-        return hr;
-
-    // Swap chainÀ» ¸¸µé¾î ÁÜ.
-    IDXGIFactory2* dxgiFactory2 = nullptr;
-    hr = dxgiFactory->QueryInterface(__uuidof(IDXGIFactory2), reinterpret_cast<void**>(&dxgiFactory2));
-    if (dxgiFactory2)
-    {
-        // DirectX 11.1 or later
-        hr = g_pd3dDevice->QueryInterface(__uuidof(ID3D11Device1), reinterpret_cast<void**>(&g_pd3dDevice1));
-        if (SUCCEEDED(hr))
-        {
-            (void)g_pImmediateContext->QueryInterface(__uuidof(ID3D11DeviceContext1), reinterpret_cast<void**>(&g_pImmediateContext1));
-
-        }
-
-        DXGI_SWAP_CHAIN_DESC1 sd = {};
-        sd.Width = width;
-        sd.Height = height;
-        sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        sd.SampleDesc.Count = 1;
-        sd.SampleDesc.Quality = 0;
-        sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        sd.BufferCount = 1;
-
-        hr = dxgiFactory2->CreateSwapChainForHwnd(g_pd3dDevice, g_hWnd, &sd, nullptr, nullptr, &g_pSwapChain1);
-        if (SUCCEEDED(hr))
-        {
-            hr = g_pSwapChain1->QueryInterface(__uuidof(IDXGISwapChain), reinterpret_cast<void**>(&g_pSwapChain));
-        }
-
-        dxgiFactory2->Release();
-    }
-    else
-    {
-        DXGI_SWAP_CHAIN_DESC sd = {};
-        sd.BufferCount = 1;
-        sd.BufferDesc.Width = width;
-        sd.BufferDesc.Height = height;
-        sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        sd.BufferDesc.RefreshRate.Numerator = 60;
-        sd.BufferDesc.RefreshRate.Denominator = 1;
-        sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        sd.OutputWindow = g_hWnd;
-        sd.SampleDesc.Count = 1;
-        sd.SampleDesc.Quality = 0;
-        sd.Windowed = TRUE;
-
-        hr = dxgiFactory->CreateSwapChain(g_pd3dDevice, &sd, &g_pSwapChain);
-    }
-
-    dxgiFactory->Release();
-    
-    if (FAILED(hr))
-        return hr;
-    
-    // Back Buffer ¼±¾ð
-    ID3D11Texture2D* pBackBuffer = nullptr;
-    hr = g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&pBackBuffer));
-    if (FAILED(hr))
-        return hr;
-
-    hr = g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_pRenderTargetView);
-    pBackBuffer->Release();
-    if (FAILED(hr))
-        return hr;
-
-    g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, nullptr);
-
-    // Viewport ¼³Á¤
-    D3D11_VIEWPORT vp;
-    {
-        vp.Width = (FLOAT)width;
-        vp.Height = (FLOAT)height;
-        vp.MinDepth = 0.0f;
-        vp.MaxDepth = 1.0f;
-        vp.TopLeftX = 0;
-        vp.TopLeftY = 0;
-    }
-    g_pImmediateContext->RSSetViewports(1, &vp);
-
-    // Vertex Shader ÄÄÆÄÀÏ
-    ID3DBlob* pVertexShaderBlob = nullptr;
-
-    hr = CompileShaderFromFile(L"../Library/Ass.fx", "VS", "vs_5_0", &pVertexShaderBlob);
-
-    if (FAILED(hr))
-    {
-        MessageBox(
-            nullptr,
-            L"The FX file cannot be compiled. Please run this executable from the directory that contains the FX file.",
-            L"Error",
-            MB_OK
-        );
-        return hr;
-    }
-
-    // Vertex Shader »ý¼º
-    hr = g_pd3dDevice->CreateVertexShader(pVertexShaderBlob->GetBufferPointer(), pVertexShaderBlob->GetBufferSize(), nullptr, &g_pVertexShader);
-
-    if (FAILED(hr))
-    {
-        pVertexShaderBlob->Release();
-        return hr;
-    }
-
-    // input layout object »ý¼º
-    D3D11_INPUT_ELEMENT_DESC layouts[] =
-    {
-        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
-
-    UINT uNumElements = ARRAYSIZE(layouts);
-
-    hr = g_pd3dDevice->CreateInputLayout(
-        layouts,
-        uNumElements,
-        pVertexShaderBlob->GetBufferPointer(),
-        pVertexShaderBlob->GetBufferSize(),
-        &g_pVertexLayout
-    );
-
-    pVertexShaderBlob->Release();
-
-    if (FAILED(hr))
-        return hr;
-
-    // input layout object ¹ÙÀÎµù
-    g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
-
-    // Pixel Shader ÄÄÆÄÀÏ
-    ID3DBlob* pPixelShaderBlob = nullptr;
-
-    hr = CompileShaderFromFile(L"../Library/Ass.fx", "PS", "ps_5_0", &pPixelShaderBlob);
-    if (FAILED(hr))
-    {
-        MessageBox(
-            nullptr,
-            L"The FX file cannot be compiled. Please run this executable from the directory that contains the FX file.",
-            L"Error",
-            MB_OK
-        );
-        return hr;
-    }
-
-    // Pixel Shader »ý¼º
-    hr = g_pd3dDevice->CreatePixelShader(pPixelShaderBlob->GetBufferPointer(), pPixelShaderBlob->GetBufferSize(), nullptr, &g_pPixelShader);
-    pPixelShaderBlob->Release();
-
-    if (FAILED(hr))
-        return hr;
-
-    // Vertex buffer »ý¼º
-    SimpleVertex sVertices[] =
-    {
-       {.Pos = XMFLOAT3(-1.0f,  1.0f, -1.0f),
-          .Color = XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) },
-        {.Pos = XMFLOAT3(1.0f,  1.0f, -1.0f),
-          .Color = XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
-        {.Pos = XMFLOAT3(1.0f,  1.0f,  1.0f),
-          .Color = XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) },
-        {.Pos = XMFLOAT3(-1.0f,  1.0f,  1.0f),
-          .Color = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
-        {.Pos = XMFLOAT3(-1.0f, -1.0f, -1.0f),
-          .Color = XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) },
-        {.Pos = XMFLOAT3(1.0f, -1.0f, -1.0f),
-          .Color = XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
-        {.Pos = XMFLOAT3(1.0f, -1.0f,  1.0f),
-          .Color = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
-        {.Pos = XMFLOAT3(-1.0f, -1.0f,  1.0f),
-          .Color = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
-    };
-
-    D3D11_BUFFER_DESC bd = {};
-    {
-        bd.Usage = D3D11_USAGE_DEFAULT;
-        bd.ByteWidth = sizeof(SimpleVertex) * 8;
-        bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-        bd.CPUAccessFlags = 0; 
-    }
-
-    D3D11_SUBRESOURCE_DATA initData = {};
-    initData.pSysMem = sVertices;
-
-    hr = g_pd3dDevice->CreateBuffer(&bd, &initData, &g_pVertexBuffer);
-
-    if (FAILED(hr))
-        return hr;
-
-    // Vertex buffer ¹ÙÀÎµù
-    UINT uStride = sizeof(SimpleVertex);
-    UINT uOffset = 0;
-    
-    g_pImmediateContext->IASetVertexBuffers(
-        0,
-        1,
-        &g_pVertexBuffer,
-        &uStride,
-        &uOffset
-    );
-
-    // Index buffer »ý¼º
-    WORD sIndices[] = {
-        3,1,0,
-        2,1,3,
-        0,5,4,
-        1,5,0,
-        3,4,7,
-        0,4,3,
-        1,6,5,
-        2,6,1,
-        2,7,6,
-        3,7,2,
-        6,4,5,
-        7,4,6,
-    };
-
-    bd = {};
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = sizeof(WORD) * 36;
-    bd.BindFlags = D3D10_BIND_INDEX_BUFFER;
-    bd.CPUAccessFlags = 0;
-
-    initData = {};
-    initData.pSysMem = sIndices;
-
-    hr = g_pd3dDevice->CreateBuffer(&bd, &initData, &g_pIndexBuffer);
-
-    if (FAILED(hr))
-        return hr;
-
-    // Index buffer ¹ÙÀÎµù
-    g_pImmediateContext->IASetIndexBuffer(g_pIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
-
-    // primitive type ¼³Á¤
-    g_pImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST); 
-
-    // constant buffer »ý¼º
-    bd = {};
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = sizeof(ConstantBuffer);
-    bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    bd.CPUAccessFlags = 0;
-    hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pConstantBuffer);
-
-    if (FAILED(hr))
-        return hr;
-
-    // world, view, projection Matrix ¼³Á¤
-    g_worldMatrix = XMMatrixIdentity();
-
-    eye = XMVectorSet(0.0f, 1.0f, -5.0f, 0.0f);
-    at = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-    up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
-    g_viewMatrix = XMMatrixLookAtLH(eye, at, up);
-    g_projectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, width / (FLOAT)height, 0.01f, 100.0f);
-
-    // Depth Stencil buffer ¼³Á¤
-    D3D11_TEXTURE2D_DESC descDepth = {};
-    {
-        descDepth.Width = width;
-        descDepth.Height = height;
-        descDepth.MipLevels = 1;
-        descDepth.ArraySize = 1;
-        descDepth.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-        descDepth.SampleDesc.Count = 1;
-        descDepth.SampleDesc.Quality = 0;
-        descDepth.Usage = D3D11_USAGE_DEFAULT;
-        descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-        descDepth.CPUAccessFlags = 0;
-        descDepth.MiscFlags = 0;
-    }
-
-    hr = g_pd3dDevice->CreateTexture2D(&descDepth, nullptr, &g_pDepthStencil);
-
-    if (FAILED(hr))
-        return hr;
-
-    // Depth Stencil buffer ¹ÙÀÎµù
-    D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
-    descDSV.Format = descDepth.Format;
-    descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-    descDSV.Texture2D.MipSlice = 0;
-
-    hr = g_pd3dDevice->CreateDepthStencilView(g_pDepthStencil, &descDSV, &g_pDepthStencilView);
-    if (FAILED(hr))
-        return hr;
-
-    g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
-
-    // Raw input device setting
-    RAWINPUTDEVICE rid;
-
-    rid.usUsagePage = 0x01; // Mouse
-    rid.usUsage = 0x02;
-    rid.dwFlags = 0;
-    rid.hwndTarget = NULL;
-
-    RegisterRawInputDevices(&rid, 1, sizeof(rid));
-
-    return S_OK;
-}
-
-void HandleInput(FLOAT deltaTime) 
-{
-    float speed = 15.0f * deltaTime;
-
-    if (g_inputDirections.bFront)   //W
-        moveBackForward += speed;
-    if (g_inputDirections.bLeft)    //A
-        moveLeftRight -= speed;
-    if (g_inputDirections.bBack)    //S
-        moveBackForward -= speed;
-    if (g_inputDirections.bRight)   //D
-        moveLeftRight += speed;
-    if (g_inputDirections.bUp)      //Q
-        moveDownUp += speed;
-    if (g_inputDirections.bDown)    //E
-        moveDownUp -= speed;
-    if (g_mouseRightClick)
-    {
-        if (g_mouseRelativeMovement.X != 0 || g_mouseRelativeMovement.Y != 0)
-        {
-            camYaw += g_mouseRelativeMovement.X * 0.002f;
-            camPitch += g_mouseRelativeMovement.Y * 0.002f;
-
-            g_mouseRelativeMovement.X = 0;
-            g_mouseRelativeMovement.Y = 0;
-        }
-    }
-}      
-
-void Update(FLOAT deltaTime)
-{
-    camRotationMatrix = XMMatrixRotationRollPitchYaw(camPitch, camYaw, 0);
-    camTarget = XMVector3TransformCoord(DefaultForward, camRotationMatrix);
-    camTarget = XMVector3Normalize(camTarget);
-
-    XMMATRIX RotateYTempMatrix;
-    RotateYTempMatrix = XMMatrixRotationY(camYaw);
-
-    eye = XMVector3TransformCoord(DefaultRight, RotateYTempMatrix);
-    up = XMVector3TransformCoord(up, RotateYTempMatrix);
-    at = XMVector3TransformCoord(DefaultForward, RotateYTempMatrix);
-
-    camPosition += moveLeftRight * eye;
-    camPosition += moveDownUp * up;
-    camPosition += moveBackForward * at;
-
-    moveLeftRight = 0.0f;
-    moveDownUp = 0.0f;
-    moveBackForward = 0.0f;
-
-    camTarget = camPosition + camTarget;
-    g_viewMatrix = XMMatrixLookAtLH(camPosition, camTarget, up);
-}
-
-void Render()
-{
-    // Render Target View Clear
-    g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
-
-    // Depth Stencil View Clear
-    g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
-
-    // Constant Buffer »ý¼º
-    ConstantBuffer cb1;
-    cb1.World = XMMatrixTranspose(g_worldMatrix);
-    cb1.View = XMMatrixTranspose(g_viewMatrix);
-    cb1.Projection = XMMatrixTranspose(g_projectionMatrix);
-    g_pImmediateContext->UpdateSubresource( g_pConstantBuffer,0, nullptr, &cb1,  0, 0);
-
-    // Shader ¼³Á¤
-    g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
-    g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer);
-    g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
-    g_pImmediateContext->DrawIndexed(36, 0, 0);
-
-    // Present
-    g_pSwapChain->Present(0, 0);
+	// 1-2. Set driver types
+	D3D_DRIVER_TYPE driverTypes[] =
+	{
+		D3D_DRIVER_TYPE_HARDWARE,
+		D3D_DRIVER_TYPE_WARP,
+		D3D_DRIVER_TYPE_REFERENCE,
+	};
+	UINT numDriverTypes = ARRAYSIZE(driverTypes);
+	// 1-3. Set feature levels
+	D3D_FEATURE_LEVEL featureLevels[] =
+	{
+		D3D_FEATURE_LEVEL_11_1,
+		D3D_FEATURE_LEVEL_11_0,
+		D3D_FEATURE_LEVEL_10_1,
+		D3D_FEATURE_LEVEL_10_0,
+	};
+	UINT numFeatureLevels = ARRAYSIZE(featureLevels);
+	// 1-4. create device
+	for (UINT driverTypeIndex = 0; driverTypeIndex < numDriverTypes; driverTypeIndex++)
+	{
+		g_driverType = driverTypes[driverTypeIndex];
+		hr = D3D11CreateDevice(nullptr, g_driverType, nullptr, createDeviceFlags, featureLevels,
+			numFeatureLevels, D3D11_SDK_VERSION, &g_pd3dDevice, &g_featureLevel, &g_pImmediateContext);
+		if (hr == E_INVALIDARG)
+		{
+			// for DirectX 11.0
+			hr = D3D11CreateDevice(nullptr, g_driverType, nullptr, createDeviceFlags, &featureLevels[1],
+				numFeatureLevels - 1, D3D11_SDK_VERSION, &g_pd3dDevice, &g_featureLevel,
+				&g_pImmediateContext);
+		}
+		if (SUCCEEDED(hr))
+			break;
+	}
+	if (FAILED(hr))
+		return hr;
+
+	// 2. Obtain DXGI Factory from device
+	IDXGIFactory1* dxgiFactory = nullptr;
+	IDXGIDevice* dxgiDevice = nullptr;
+
+	hr = g_pd3dDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void**>(&dxgiDevice));
+	if (SUCCEEDED(hr))
+	{
+		IDXGIAdapter* adapter = nullptr;
+		hr = dxgiDevice->GetAdapter(&adapter);
+		if (SUCCEEDED(hr))
+		{
+			hr = adapter->GetParent(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&dxgiFactory));
+			adapter->Release();
+		}
+		dxgiDevice->Release();
+	}
+
+	if (FAILED(hr))
+		return hr;
+
+	// 3. Create swap chain
+	IDXGIFactory2* dxgiFactory2 = nullptr;
+	hr = dxgiFactory->QueryInterface(__uuidof(IDXGIFactory2), reinterpret_cast<void**>(&dxgiFactory2));
+	if (dxgiFactory2)
+	{
+		// DirectX 11.1 or later
+		hr = g_pd3dDevice->QueryInterface(__uuidof(ID3D11Device1), reinterpret_cast<void**>(&g_pd3dDevice1));
+		if (SUCCEEDED(hr))
+		{
+			(void)g_pImmediateContext->QueryInterface(__uuidof(ID3D11DeviceContext1),
+				reinterpret_cast<void**>(&g_pImmediateContext1));
+		}
+		DXGI_SWAP_CHAIN_DESC1 sd = {};
+		sd.Width = g_width;
+		sd.Height = g_height;
+		sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		sd.SampleDesc.Count = 1;
+		sd.SampleDesc.Quality = 0;
+		sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		sd.BufferCount = 1;
+		hr = dxgiFactory2->CreateSwapChainForHwnd(g_pd3dDevice, g_hWnd, &sd, nullptr, nullptr, &g_pSwapChain1);
+		if (SUCCEEDED(hr))
+		{
+			hr = g_pSwapChain1->QueryInterface(__uuidof(IDXGISwapChain),
+				reinterpret_cast<void**>(&g_pSwapChain));
+		}
+		dxgiFactory2->Release();
+	}
+	else {
+		DXGI_SWAP_CHAIN_DESC sd = {};
+		sd.BufferCount = 1;
+		sd.BufferDesc.Width = g_width;
+		sd.BufferDesc.Height = g_height;
+		sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		sd.BufferDesc.RefreshRate.Numerator = 60;
+		sd.BufferDesc.RefreshRate.Denominator = 1;
+		sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		sd.OutputWindow = g_hWnd;
+		sd.SampleDesc.Count = 1;
+		sd.SampleDesc.Quality = 0;
+		sd.Windowed = TRUE;
+
+		hr = dxgiFactory->CreateSwapChain(g_pd3dDevice, &sd, &g_pSwapChain);
+	}
+
+	dxgiFactory->Release();
+
+	if (FAILED(hr))
+		return hr;
+
+	// 4. Create render target view
+	ID3D11Texture2D* pBackBuffer = nullptr;
+	hr = g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&pBackBuffer));
+	if (FAILED(hr))
+		return hr;
+
+	hr = g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_pRenderTargetView);
+	pBackBuffer->Release();
+	if (FAILED(hr))
+		return hr;
+
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, nullptr);
+
+	// 5. Setup the viewport
+	D3D11_VIEWPORT vp;
+	vp.Width = (FLOAT)g_width;
+	vp.Height = (FLOAT)g_height;
+	vp.MinDepth = 0.0f;
+	vp.MaxDepth = 1.0f;
+	vp.TopLeftX = 0;
+	vp.TopLeftY = 0;
+	g_pImmediateContext->RSSetViewports(1, &vp);
+
+	//---------------------------------------------------------------------------
+
+
+	// 1. compile vertex shader
+	hr = CompileShaderFromFile(L"../Library/Shader.fx", "VS", "vs_5_0", &pVertexShaderBlob);
+	if (FAILED(hr))
+		return hr;
+
+	// 2. create vertex shader
+	hr = g_pd3dDevice->CreateVertexShader(
+		pVertexShaderBlob->GetBufferPointer(),
+		pVertexShaderBlob->GetBufferSize(),
+		nullptr,
+		&g_pVertexShader
+	);
+	if (FAILED(hr))
+	{
+		pVertexShaderBlob->Release();
+		return hr;
+	}
+
+	// 3. create input-layout object
+	// : IA Stage's input(vertex buffer, index buffer) info
+	D3D11_INPUT_ELEMENT_DESC layouts[] =
+	{
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	};
+	UINT uNumElements = ARRAYSIZE(layouts);
+
+	hr = g_pd3dDevice->CreateInputLayout(
+		layouts,
+		uNumElements,
+		pVertexShaderBlob->GetBufferPointer(),
+		pVertexShaderBlob->GetBufferSize(),
+		&g_pVertexLayout
+	);
+
+	pVertexShaderBlob->Release();
+
+	if (FAILED(hr))
+		return hr;
+
+	// 4. input layout binding
+	g_pImmediateContext->IASetInputLayout(g_pVertexLayout);
+
+	// 5. compile & create pixel shader
+	hr = CompileShaderFromFile(L"../Library/Shader.fx", "PS", "ps_5_0", &pPixelShaderBlob);
+	if (FAILED(hr))
+		return hr;
+	hr = g_pd3dDevice->CreatePixelShader(
+		pPixelShaderBlob->GetBufferPointer(),
+		pPixelShaderBlob->GetBufferSize(),
+		nullptr,
+		&g_pPixelShader
+	);
+	if (FAILED(hr))
+	{
+		pPixelShaderBlob->Release();
+		return hr;
+	}
+
+	// 6. pixel solid shader
+	hr = CompileShaderFromFile(L"../Library/Shader.fx", "PSSolid", "ps_5_0", &pPixelShaderBlob);
+	if (FAILED(hr))
+		return hr;
+	hr = g_pd3dDevice->CreatePixelShader(
+		pPixelShaderBlob->GetBufferPointer(),
+		pPixelShaderBlob->GetBufferSize(),
+		nullptr,
+		&g_pPixelSolidShader
+	);
+	if (FAILED(hr))
+	{
+		pPixelShaderBlob->Release();
+		return hr;
+	}
+
+	// 7-1. create vertex buffer
+	// Vertex position structure
+	SimpleVertex sVertices[] =
+	{
+		{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT3(0.0f, -1.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+		{ XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+		{ XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+		{ XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT3(0.0f, 0.0f, -1.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+	};
+
+	// buffer description
+	D3D11_BUFFER_DESC bd = {};
+	bd.Usage = D3D11_USAGE_DEFAULT;
+	bd.ByteWidth = sizeof(SimpleVertex) * 24;
+	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bd.CPUAccessFlags = 0;
+
+	// subresource data
+	D3D11_SUBRESOURCE_DATA initData = {};
+	initData.pSysMem = sVertices;
+
+	// Request D3DDevice to create buffer
+	hr = g_pd3dDevice->CreateBuffer(
+		&bd,
+		&initData,
+		&g_pVertexBuffer
+	);
+	if (FAILED(hr))
+		return hr;
+
+	// 7-2. create index buffer
+	// index info
+	WORD sIndices[] = {
+		3,1,0,
+		2,1,3,
+
+		6,4,5,
+		7,4,6,
+
+		11,9,8,
+		10,9,11,
+
+		14,12,13,
+		15,12,14,
+
+		19,17,16,
+		18,17,19,
+
+		22,20,21,
+		23,20,22
+	};
+
+	// buffer description
+	bd = {};
+	bd.Usage = D3D11_USAGE_DEFAULT;
+	bd.ByteWidth = sizeof(WORD) * 36;
+	bd.BindFlags = D3D10_BIND_INDEX_BUFFER;
+	bd.CPUAccessFlags = 0;
+
+	// subresource data
+	initData = {};
+	initData.pSysMem = sIndices;
+
+	// Request D3DDevice to create buffer 
+	hr = g_pd3dDevice->CreateBuffer(
+		&bd,
+		&initData,
+		&g_pIndexBuffer
+	);
+	if (FAILED(hr))
+		return hr;
+
+	// 8-1. vertex buffer binding
+	UINT uStride = sizeof(SimpleVertex);
+	UINT uOffset = 0;
+
+	g_pImmediateContext->IASetVertexBuffers(
+		0,						// slot
+		1,						// bufferï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+		&g_pVertexBuffer,		// vertex buffer 
+		&uStride,				// stride 
+		&uOffset				// offset
+	);
+
+	// 8-2. index buffer binding
+	g_pImmediateContext->IASetIndexBuffer(
+		g_pIndexBuffer,			// index buffer
+		DXGI_FORMAT_R16_UINT,	// format of the index data 
+		0						// offset
+	);
+
+	// 9. set primitive type
+	g_pImmediateContext->IASetPrimitiveTopology(
+		D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST
+	);
+
+	// 10. set texture
+	hr = CreateDDSTextureFromFile(g_pd3dDevice, L"../Library/seafloor.dds", nullptr, &g_pTextureRV);
+	if (FAILED(hr))
+		return hr;
+
+	D3D11_SAMPLER_DESC sampDesc = { };
+	sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+	sampDesc.MinLOD = 0;
+	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	hr = g_pd3dDevice->CreateSamplerState(&sampDesc, &g_pSamplerLinear);
+	if (FAILED(hr))
+		return hr;
+
+	// buffer description for constant buffer
+	bd = {};
+	bd.Usage = D3D11_USAGE_DEFAULT;
+	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	bd.CPUAccessFlags = 0;
+
+	// Request D3DDevice to create buffer
+	bd.ByteWidth = sizeof(CBChangeOnCameraMovement);
+	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pCBChangeOnCameraMovement);
+	if (FAILED(hr))
+		return hr;
+	bd.ByteWidth = sizeof(CBChangeOnResize);
+	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pCBChangeOnResize);
+	if (FAILED(hr))
+		return hr;
+	bd.ByteWidth = sizeof(CBChangeEveryFrame);
+	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pCBChangeEveryFrame);
+	if (FAILED(hr))
+		return hr;
+	bd.ByteWidth = sizeof(CBLights);
+	hr = g_pd3dDevice->CreateBuffer(&bd, nullptr, &g_pCBLights);
+	if (FAILED(hr))
+		return hr;
+
+	// creating a depth-stencil resource
+	D3D11_TEXTURE2D_DESC descDepth = {};
+	descDepth.Width = g_width;
+	descDepth.Height = g_height;
+	descDepth.MipLevels = 1;
+	descDepth.ArraySize = 1;
+	descDepth.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	descDepth.SampleDesc.Count = 1;
+	descDepth.SampleDesc.Quality = 0;
+	descDepth.Usage = D3D11_USAGE_DEFAULT;
+	descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	descDepth.CPUAccessFlags = 0;
+	descDepth.MiscFlags = 0;
+
+	hr = g_pd3dDevice->CreateTexture2D(&descDepth, nullptr, &g_pDepthStencil);
+
+	if (FAILED(hr))
+		return hr;
+
+	// create stencil view
+	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
+	descDSV.Format = descDepth.Format;
+	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	descDSV.Texture2D.MipSlice = 0;
+
+	hr = g_pd3dDevice->CreateDepthStencilView(g_pDepthStencil, &descDSV, &g_pDepthStencilView);
+	if (FAILED(hr))
+		return hr;
+
+	// request context to bind with render target
+	g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, g_pDepthStencilView);
+
+	if (FAILED(hr))
+		return hr;
+
+	return S_OK;
 }
 
 void CleanupDevice()
 {
-    if (g_pImmediateContext) g_pImmediateContext->ClearState();
+	if (g_pImmediateContext) g_pImmediateContext->ClearState();
+	if (g_pRenderTargetView) g_pRenderTargetView->Release();
+	if (g_pSwapChain1) g_pSwapChain1->Release();
+	if (g_pSwapChain) g_pSwapChain->Release();
+	if (g_pImmediateContext1) g_pImmediateContext1->Release();
+	if (g_pImmediateContext) g_pImmediateContext->Release();
+	if (g_pd3dDevice1) g_pd3dDevice1->Release();
+	if (g_pd3dDevice) g_pd3dDevice->Release();
 
-    if (g_pVertexBuffer) g_pVertexBuffer->Release();
-    if (g_pIndexBuffer) g_pIndexBuffer->Release();
-    if (g_pVertexLayout) g_pVertexLayout->Release();
-    if (g_pVertexShader) g_pVertexShader->Release();
-    if (g_pPixelShader) g_pPixelShader->Release();
+	if (g_pVertexBuffer) g_pVertexBuffer->Release();
+	if (g_pVertexLayout) g_pVertexLayout->Release();
+	if (g_pVertexShader) g_pVertexShader->Release();
+	if (g_pPixelShader) g_pPixelShader->Release();
 
-    if (g_pRenderTargetView) g_pRenderTargetView->Release();
-    if (g_pSwapChain1) g_pSwapChain1->Release();
-    if (g_pSwapChain) g_pSwapChain->Release();
-    if (g_pImmediateContext1) g_pImmediateContext1->Release();
-    if (g_pImmediateContext) g_pImmediateContext->Release();
-    if (g_pd3dDevice1) g_pd3dDevice1->Release();
-    if (g_pd3dDevice) g_pd3dDevice->Release();
+	if (g_pDepthStencil) g_pDepthStencil->Release();
+	if (g_pDepthStencilView) g_pDepthStencilView->Release();
+	if (g_pTextureRV) g_pTextureRV->Release();
+	if (g_pSamplerLinear) g_pSamplerLinear->Release();
 
-    if (g_pConstantBuffer) g_pConstantBuffer->Release();
-
-    if (g_pDepthStencil) g_pDepthStencil->Release();
-    if (g_pDepthStencilView) g_pDepthStencilView->Release();
+	if (g_pCBChangeOnCameraMovement) g_pCBChangeOnCameraMovement->Release();
+	if (g_pCBChangeOnResize) g_pCBChangeOnResize->Release();
+	if (g_pCBChangeEveryFrame) g_pCBChangeEveryFrame->Release();
+	if (g_pCBLights) g_pCBLights->Release();
+	if (g_pPixelSolidShader) g_pPixelSolidShader->Release();
 }
 
-HRESULT CompileShaderFromFile(_In_ PCWSTR pszFileName, _In_ PCSTR pszEntryPoint, _In_ PCSTR pszShaderModel, _Outptr_ ID3DBlob** ppBlobOut)
+void Render()
 {
-    HRESULT hr = S_OK;
+	static float t = 0.0f;
+	if (g_driverType == D3D_DRIVER_TYPE_REFERENCE)
+	{
+		t += (float)XM_PI * 0.0125f;
+	}
+	else
+	{
+		static ULONGLONG timeStart = 0;
+		ULONGLONG timeCur = GetTickCount64();
+		if (timeStart == 0)
+			timeStart = timeCur;
+		t = (timeCur - timeStart) / 1000.0f;
+	}
 
-    DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
+	// rotate the cube
+	g_worldMatrix = XMMatrixRotationY(t);
+
+	// Declare Lights
+	XMFLOAT4 vLightPositions[2] =
+	{
+		XMFLOAT4(-2.5f, 2.5f, -2.5f, 1.0f),
+		XMFLOAT4(0.0f, 0.0f, -3.0f, 1.0f),
+	};
+	XMFLOAT4 vLightColors[2] = 
+	{
+		XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f),
+		XMFLOAT4(0.5f, 0.0f, 0.0f, 1.0f)
+	};
+	XMMATRIX mRotate = XMMatrixRotationY(-2.0f * t);
+	XMVECTOR vLightPos = XMLoadFloat4(&vLightPositions[1]);
+	vLightPos = XMVector3Transform(vLightPos, mRotate);
+	XMStoreFloat4(&vLightPositions[1], vLightPos);
+
+	// Clear Back Buffer
+	g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, Colors::MidnightBlue);
+
+	// Clearing Depth Buffer
+	g_pImmediateContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	// Update Constant Buffer
+	CBLights cbLights;
+	cbLights.LightPositions[0] = vLightPositions[0];
+	cbLights.LightPositions[1] = vLightPositions[1];
+	cbLights.LightColors[0] = vLightColors[0];
+	cbLights.LightColors[1] = vLightColors[1];
+	g_pImmediateContext->UpdateSubresource(g_pCBLights, 0, nullptr, &cbLights, 0, 0);
+
+	// Set camera
+	XMVECTOR eye = XMVectorSet(-2.0f, 3.0f, -5.0f, 0.0f);
+	XMVECTOR at = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+	g_viewMatrix = XMMatrixLookAtLH(eye, at, up);
+	g_worldMatrix = XMMatrixIdentity();
+	g_projectionMatrix = XMMatrixPerspectiveFovLH(
+		XM_PIDIV2,
+		g_width / (FLOAT)g_height,
+		0.01f,
+		100.0f
+	);
+	
+	CBChangeOnCameraMovement cbv;   cbv.View = XMMatrixTranspose(g_viewMatrix);		
+										XMStoreFloat4(&cbv.CameraPosition, eye);
+	CBChangeOnResize cbp;           cbp.Projection = XMMatrixTranspose(g_projectionMatrix);
+	CBChangeEveryFrame cbw;         cbw.World = XMMatrixTranspose(g_worldMatrix);
+	g_pImmediateContext->UpdateSubresource(g_pCBChangeOnCameraMovement, 0, nullptr, &cbv, 0, 0);
+	g_pImmediateContext->UpdateSubresource(g_pCBChangeOnResize, 0, nullptr, &cbp, 0, 0);
+	g_pImmediateContext->UpdateSubresource(g_pCBChangeEveryFrame, 0, nullptr, &cbw, 0, 0);
+	g_pImmediateContext->UpdateSubresource(g_pCBLights, 0, nullptr, &cbLights, 0, 0);
+
+	// vertex shader binding
+	g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
+	g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pCBChangeOnCameraMovement);
+	g_pImmediateContext->VSSetConstantBuffers(1, 1, &g_pCBChangeOnResize);
+	g_pImmediateContext->VSSetConstantBuffers(2, 1, &g_pCBChangeEveryFrame);
+
+	// pixel shader binding
+	g_pImmediateContext->PSSetShader(g_pPixelShader, nullptr, 0);
+	g_pImmediateContext->PSSetShaderResources(0, 1, &g_pTextureRV);
+	g_pImmediateContext->PSSetSamplers(0, 1, &g_pSamplerLinear);
+	g_pImmediateContext->PSSetConstantBuffers(0, 1, &g_pCBChangeOnCameraMovement);
+	g_pImmediateContext->PSSetConstantBuffers(2, 1, &g_pCBChangeEveryFrame);
+	g_pImmediateContext->PSSetConstantBuffers(3, 1, &g_pCBLights);
+
+	// Call Draw method
+	g_pImmediateContext->DrawIndexed(36, 0, 0);
+
+	for (int m = 0; m < 2; m++)
+	{
+		XMMATRIX mLight = XMMatrixTranslationFromVector(XMLoadFloat4(&vLightPositions[m]));
+		XMMATRIX mLightScale = XMMatrixScaling(0.2f, 0.2f, 0.2f);
+		mLight = mLightScale * mLight;
+		CBChangeEveryFrame cbCEF;
+		cbCEF.World = XMMatrixTranspose(mLight);
+		cbCEF.OutputColor = vLightColors[m];
+		g_pImmediateContext->UpdateSubresource(g_pCBChangeEveryFrame, 0, nullptr, &cbCEF, 0, 0);
+		g_pImmediateContext->PSSetShader(g_pPixelSolidShader, nullptr, 0);
+		g_pImmediateContext->DrawIndexed(36, 0, 0);
+	}
+
+	g_pSwapChain->Present(0, 0);
+}
+
+HRESULT CompileShaderFromFile(
+	_In_ PCWSTR pszFileName, // FileName
+	_In_ PCSTR pszEntryPoint, // EntryPoint
+	_In_ PCSTR pszShaderModel, // Shader target 
+	_Outptr_ ID3DBlob** ppBlobOut // ID3DBlob out
+) {
+	HRESULT hr = S_OK;
+
+	// D3DCompileFromFile
+	DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
 
 #if defined (DEBUG) || defined(_DEBUG)
-    dwShaderFlags |= D3DCOMPILE_DEBUG;
-    dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+	dwShaderFlags |= D3DCOMPILE_DEBUG;
+	dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
-    
-    ID3DBlob* pErrorBlob = nullptr;
-    hr = D3DCompileFromFile(pszFileName, nullptr, nullptr, pszEntryPoint, pszShaderModel,
-        dwShaderFlags, 0, ppBlobOut, &pErrorBlob);
 
-    if (FAILED(hr))
-    {
-        if (pErrorBlob)
-        {
-            OutputDebugStringA(reinterpret_cast<PCSTR>(pErrorBlob->GetBufferPointer()));
-            pErrorBlob->Release();
-        }
-        return hr;
-    }
-    if (pErrorBlob) pErrorBlob->Release();
+	ID3DBlob* pErrorBlob = nullptr;
+	hr = D3DCompileFromFile(
+		pszFileName,    // FileName
+		nullptr,        // shader macros
+		nullptr,        // include files 
+		pszEntryPoint,  // Entry point 
+		pszShaderModel, // shader target
+		dwShaderFlags,  // flag1
+		0,              // flag2
+		ppBlobOut,      // ID3DBlob out 
+		&pErrorBlob     // error blob out
+	);
 
-    return S_OK;
+	if (FAILED(hr))
+	{
+		if (pErrorBlob) {
+			OutputDebugStringA(
+				reinterpret_cast<PCSTR>(pErrorBlob->GetBufferPointer()));
+			pErrorBlob->Release();
+		}
+		return hr;
+	}
+	if (pErrorBlob) pErrorBlob->Release();
+
+	return S_OK;
 }

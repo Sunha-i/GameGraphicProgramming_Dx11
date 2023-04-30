@@ -1,8 +1,36 @@
-﻿#include <Common.h>
-#include <Game/Game.h>
+﻿/*+===================================================================
+  File:      MAIN.CPP
+  Summary:   This application serves as a test code for the project
+  Origin:    http://msdn.microsoft.com/en-us/library/windows/apps/ff729718.aspx
+  Originally created by Microsoft Corporation under MIT License
+  © 2022 Kyung Hee University
+===================================================================+*/
 
+#include "Common.h"
+
+#include "Game/Game.h"
+
+/*F+F+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  Function: wWinMain
+  Summary:  Entry point to the program. Initializes everything and
+            goes into a message processing loop. Idle time is used to
+            render the scene.
+  Args:     HINSTANCE hInstance
+              Handle to an instance.
+            HINSTANCE hPrevInstance
+              Has no meaning.
+            LPWSTR lpCmdLine
+              Contains the command-line arguments as a Unicode
+              string
+            INT nCmdShow
+              Flag that says whether the main application window
+              will be minimized, maximized, or shown normally
+  Returns:  INT
+              Status code.
+-----------------------------------------------------------------F-F*/
 INT WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ INT nCmdShow)
 {
+    // Initialization
     if (FAILED(InitWindow(hInstance, nCmdShow)))
         return 0;
 
@@ -11,16 +39,6 @@ INT WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
         CleanupDevice();
         return 0;
     }
-
-    // Declare Elapse Time variable 
-    LARGE_INTEGER startTime;
-    LARGE_INTEGER endTime;
-    LARGE_INTEGER frequency;
-    LARGE_INTEGER elapsedMsc;
-
-    QueryPerformanceCounter(&startTime);
-    QueryPerformanceFrequency(&frequency);
-
     // Main message loop
     MSG msg = { 0 };
     while (WM_QUIT != msg.message)
@@ -32,25 +50,10 @@ INT WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
         }
         else
         {
-            // Calculate Elapse Time every frame
-            QueryPerformanceCounter(&endTime);
-            elapsedMsc.QuadPart = endTime.QuadPart - startTime.QuadPart;
-            elapsedMsc.QuadPart *= 1000000;
-            elapsedMsc.QuadPart /= frequency.QuadPart;
-
-            QueryPerformanceFrequency(&frequency);
-            QueryPerformanceCounter(&startTime);
-
-            FLOAT deltaTime = static_cast<FLOAT>(elapsedMsc.QuadPart) / 1000000.0f;
-
-            HandleInput(deltaTime);
-            Update(deltaTime);
-
             Render();
         }
     }
-
+    // Destroy
     CleanupDevice();
-
     return (int)msg.wParam;
 }
