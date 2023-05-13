@@ -55,6 +55,18 @@
     <Filter Include="헤더 파일\Window">
       <UniqueIdentifier>{d3bb7b12-7568-41a3-bec7-94ed471eda72}</UniqueIdentifier>
     </Filter>
+    <Filter Include="소스 파일\Material">
+      <UniqueIdentifier>{c18f55d4-960c-4c6b-8ffe-bdd36904869d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="헤더 파일\Material">
+      <UniqueIdentifier>{5d61a49b-fd58-4c7d-a7dc-6f29dfaf8bcc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="소스 파일\Model">
+      <UniqueIdentifier>{add5d66e-5695-49f6-b0b7-b5b4d06fc2ef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="헤더 파일\Model">
+      <UniqueIdentifier>{93dd9729-5cd1-46a9-a5ea-683dae8c2f45}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Camera\Camera.cpp">
@@ -86,6 +98,18 @@
     </ClCompile>
     <ClCompile Include="Window\MainWindow.cpp">
       <Filter>소스 파일\Window</Filter>
+    </ClCompile>
+    <ClCompile Include="Texture\WICTextureLoader.cpp">
+      <Filter>소스 파일\Texture</Filter>
+    </ClCompile>
+    <ClCompile Include="Material\Material.cpp">
+      <Filter>소스 파일\Material</Filter>
+    </ClCompile>
+    <ClCompile Include="Texture\Texture.cpp">
+      <Filter>소스 파일\Texture</Filter>
+    </ClCompile>
+    <ClCompile Include="Model\Model.cpp">
+      <Filter>소스 파일\Model</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -127,6 +151,15 @@
     </ClInclude>
     <ClInclude Include="Window\BaseWindow.h">
       <Filter>헤더 파일\Window</Filter>
+    </ClInclude>
+    <ClInclude Include="Texture\WICTextureLoader.h">
+      <Filter>헤더 파일\Texture</Filter>
+    </ClInclude>
+    <ClInclude Include="Material\Material.h">
+      <Filter>헤더 파일\Material</Filter>
+    </ClInclude>
+    <ClInclude Include="Model\Model.h">
+      <Filter>헤더 파일\Model</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

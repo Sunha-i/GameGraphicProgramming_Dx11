@@ -1,10 +1,5 @@
 #include "Cube/BaseCube.h"
 
-BaseCube::BaseCube(_In_ const std::filesystem::path& textureFilePath)
-    : Renderable(textureFilePath)
-{
-}
-
 BaseCube::BaseCube(_In_ const XMFLOAT4& outputColor)
     : Renderable(outputColor)
 {
@@ -12,6 +7,13 @@ BaseCube::BaseCube(_In_ const XMFLOAT4& outputColor)
 
 HRESULT BaseCube::Initialize(_In_ ID3D11Device* pDevice, _In_ ID3D11DeviceContext* pImmediateContext)
 {
+    BasicMeshEntry basicMeshEntry;
+    basicMeshEntry.uNumIndices = NUM_INDICES;
+    basicMeshEntry.uMaterialIndex = 0u;
+
+    m_aMeshes.push_back(basicMeshEntry);
+    m_aMaterials.push_back(Material());
+
     return initialize(pDevice, pImmediateContext);
 }
 

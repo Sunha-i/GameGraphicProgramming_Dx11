@@ -6,12 +6,28 @@
 #include "Shader/VertexShader.h"
 
 #include "Renderer/DataTypes.h"
-
+#include "Material/Material.h"
 
 class Renderable
 {
 public:
-	Renderable(_In_ const std::filesystem::path& textureFilePath);
+	static constexpr const UINT INVALID_MATERIAL = (0xFFFFFFFF);
+
+protected:
+	struct BasicMeshEntry {
+		BasicMeshEntry()
+			: uNumIndices(0u)
+			, uBaseVertex(0u)
+			, uBaseIndex(0u)
+			, uMaterialIndex(INVALID_MATERIAL)
+		{}
+		UINT uNumIndices;
+		UINT uBaseVertex;
+		UINT uBaseIndex;
+		UINT uMaterialIndex;
+	};
+
+public:
 	Renderable(_In_ const XMFLOAT4& outputColor);
 	Renderable(const Renderable& other) = delete;
 	Renderable(Renderable&& other) = delete;
@@ -33,10 +49,10 @@ public:
 	ComPtr<ID3D11Buffer>& GetConstantBuffer();
 
 	const XMMATRIX& GetWorldMatrix() const;
-	ComPtr<ID3D11ShaderResourceView>& GetTextureResourceView();
-	ComPtr<ID3D11SamplerState>& GetSamplerState();
 	const XMFLOAT4& GetOutputColor() const;
 	BOOL HasTexture() const;
+	const Material& GetMaterial(UINT uIndex);
+	const BasicMeshEntry& GetMesh(UINT uIndex);
 
 	void RotateX(_In_ FLOAT angle);
 	void RotateY(_In_ FLOAT angle);
@@ -47,6 +63,9 @@ public:
 
 	virtual UINT GetNumVertices() const = 0;
 	virtual UINT GetNumIndices() const = 0;
+
+	UINT GetNumMeshes() const;
+	UINT GetNumMaterials() const;
 
 protected:
 	const virtual SimpleVertex* getVertices() const = 0;
@@ -60,14 +79,13 @@ protected:
 	ComPtr<ID3D11Buffer> m_vertexBuffer;
 	ComPtr<ID3D11Buffer> m_indexBuffer;
 	ComPtr<ID3D11Buffer> m_cbChangeEveryFrame;
-	ComPtr<ID3D11ShaderResourceView> m_textureRV;
-	ComPtr<ID3D11SamplerState> m_samplerLinear;
+
+	std::vector<BasicMeshEntry> m_aMeshes;
+	std::vector<Material> m_aMaterials;
 
 	std::shared_ptr<VertexShader> m_vertexShader;
 	std::shared_ptr<PixelShader> m_pixelShader;
-	std::filesystem::path m_textureFilePath;
 
 	XMFLOAT4 m_outputColor;
 	XMMATRIX m_world;
-	BOOL m_bHasTexture;
 };
