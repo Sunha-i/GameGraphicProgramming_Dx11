@@ -25,6 +25,7 @@ protected:
 	static constexpr const XMVECTORF32 DEFAULT_FORWARD = { 0.0f, 0.0f, 1.0f, 0.0f };
 	static constexpr const XMVECTORF32 DEFAULT_RIGHT = { 1.0f, 0.0f, 0.0f, 0.0f };
 	static constexpr const XMVECTORF32 DEFAULT_UP = { 0.0f, 1.0f, 0.0f, 0.0f };
+	static constexpr const XMVECTORF32 DEFAULT_TARGET = { 0.0f, -1.0f, 2.0f, 0.0f };
 
 	ComPtr<ID3D11Buffer> m_cbChangeOnCameraMovement;
 
@@ -33,7 +34,6 @@ protected:
 
 	FLOAT m_moveLeftRight;
 	FLOAT m_moveBackForward;
-	FLOAT m_moveUpDown;
 
 	FLOAT m_movementSpeed;
 	FLOAT m_rotationSpeed;
@@ -48,4 +48,5 @@ protected:
 
 	XMMATRIX m_rotation;
 	XMMATRIX m_view;
+	XMVECTOR m_target;
 };

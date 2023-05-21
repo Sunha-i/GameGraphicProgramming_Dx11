@@ -148,6 +148,13 @@ void Renderable::RotateZ(_In_ FLOAT angle)
 	m_world *= XMMatrixRotationZ(angle);
 }
 
+void Renderable::RotateYInObjectCoordinate(_In_ FLOAT angle, _In_ const XMVECTOR& objectOffset)
+{
+	Translate(objectOffset * -1.0f);
+	RotateY(XMConvertToRadians(angle));
+	Translate(objectOffset * 1.0f);
+}
+
 void Renderable::RotateRollPitchYaw(_In_ FLOAT roll, _In_ FLOAT pitch, _In_ FLOAT yaw)
 {
 	m_world *= XMMatrixRotationRollPitchYaw(pitch, yaw, roll);

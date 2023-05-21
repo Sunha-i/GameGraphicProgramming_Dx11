@@ -1,10 +1,8 @@
 ﻿#include "Common.h"
 
 #include "Cube/Cube.h"
-#include "Cube/RotatingCube.h"
-#include "Light/RotatingPointLight.h"
 #include "Game/Game.h"
-#include "Model/Model.h"
+#include "Character/Character.h"
 
 INT WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ INT nCmdShow)
 {
@@ -26,14 +24,14 @@ INT WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
     // Point Light
     XMFLOAT4 color;
     XMStoreFloat4(&color, Colors::AntiqueWhite);
-    std::shared_ptr<PointLight> pointLight = std::make_shared<PointLight>(XMFLOAT4(-5.77f, 5.77f, -5.77f, 1.0f), color);
+    std::shared_ptr<PointLight> pointLight = std::make_shared<PointLight>(XMFLOAT4(-5.77f, 7.77f, -5.77f, 1.0f), color);
 
     if (FAILED(game->GetRenderer()->AddPointLight(0u, pointLight)))
         return 0;
 
     // Point Light Cube
     std::shared_ptr<Cube> lightCube = std::make_shared<Cube>(color);
-    lightCube->Translate(XMVectorSet(-5.77f, 5.77f, -5.77f, 0.0f));
+    lightCube->Translate(XMVectorSet(-5.77f, 7.77f, -5.77f, 0.0f));
     if (FAILED(game->GetRenderer()->AddRenderable(L"LightCube", lightCube)))
         return 0;
     if (FAILED(game->GetRenderer()->SetVertexShaderOfRenderable(L"LightCube", L"VS")))
@@ -41,32 +39,15 @@ INT WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
     if (FAILED(game->GetRenderer()->SetPixelShaderOfRenderable(L"LightCube", L"PSSolid")))
         return 0;
 
-    // Rotating Point Light
-    XMFLOAT4 Rcolor;
-    XMStoreFloat4(&Rcolor, Colors::IndianRed);
-    std::shared_ptr<RotatingPointLight> RpointLight = std::make_shared<RotatingPointLight>(XMFLOAT4(0.0f, 0.0f, -5.0f, 1.0f), Rcolor);
-
-    if (FAILED(game->GetRenderer()->AddPointLight(1u, RpointLight)))
+    // Stone Character
+    std::shared_ptr<Character> stone = std::make_shared<Character>();
+    stone->Scale(0.5f, 0.5f, 0.5f);
+    game->GetRenderer()->SetCharacter(stone);
+    if (FAILED(game->GetRenderer()->AddRenderable(L"Stone", stone)))
         return 0;
-
-    // Rotating Point Light Cube
-    std::shared_ptr<RotatingCube> RlightCube = std::make_shared<RotatingCube>(Rcolor);
-    RlightCube->Translate(XMVectorSet(0.0f, 0.0f, -5.0f, 1.0f));
-    if (FAILED(game->GetRenderer()->AddRenderable(L"RotatingLightCube", RlightCube)))
+    if (FAILED(game->GetRenderer()->SetVertexShaderOfRenderable(L"Stone", L"VS")))
         return 0;
-    if (FAILED(game->GetRenderer()->SetVertexShaderOfRenderable(L"RotatingLightCube", L"VS")))
-        return 0;
-    if (FAILED(game->GetRenderer()->SetPixelShaderOfRenderable(L"RotatingLightCube", L"PSSolid")))
-        return 0;
-
-    // Stone Model
-    std::shared_ptr<Model> spider = std::make_shared<Model>(L"../../Data/Stone/Stone.obj");
-    spider->Scale(0.5f, 0.5f, 0.5f);
-    if (FAILED(game->GetRenderer()->AddRenderable(L"Spider", spider)))
-        return 0;
-    if (FAILED(game->GetRenderer()->SetVertexShaderOfRenderable(L"Spider", L"VS")))
-        return 0;
-    if (FAILED(game->GetRenderer()->SetPixelShaderOfRenderable(L"Spider", L"PS")))
+    if (FAILED(game->GetRenderer()->SetPixelShaderOfRenderable(L"Stone", L"PS")))
         return 0;
 
     if (FAILED(game->Initialize(hInstance, nCmdShow)))

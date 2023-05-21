@@ -67,6 +67,12 @@
     <Filter Include="헤더 파일\Model">
       <UniqueIdentifier>{93dd9729-5cd1-46a9-a5ea-683dae8c2f45}</UniqueIdentifier>
     </Filter>
+    <Filter Include="소스 파일\Character">
+      <UniqueIdentifier>{4778b552-e66c-4f6b-922f-41e86743f623}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="헤더 파일\Character">
+      <UniqueIdentifier>{eb53feef-5996-4399-822e-530b1f41bab7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Camera\Camera.cpp">
@@ -110,6 +116,9 @@
     </ClCompile>
     <ClCompile Include="Model\Model.cpp">
       <Filter>소스 파일\Model</Filter>
+    </ClCompile>
+    <ClCompile Include="Character\Character.cpp">
+      <Filter>소스 파일\Character</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -160,6 +169,9 @@
     </ClInclude>
     <ClInclude Include="Model\Model.h">
       <Filter>헤더 파일\Model</Filter>
+    </ClInclude>
+    <ClInclude Include="Character\Character.h">
+      <Filter>헤더 파일\Character</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

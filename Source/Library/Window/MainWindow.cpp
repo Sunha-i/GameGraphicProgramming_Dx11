@@ -2,7 +2,6 @@
 
 #include "Window/MainWindow.h"
 
-
 HRESULT MainWindow::InitWindow(_In_ HINSTANCE hInstance, _In_ INT nCmdShow, _In_ PCWSTR pszWindowName)
 {
     RAWINPUTDEVICE rid = {};
@@ -58,9 +57,6 @@ LRESULT MainWindow::HandleMessage(_In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARA
 
                if (raw->header.dwType == RIM_TYPEMOUSE)
                {
-                   m_mouseRelativeMovement.X = raw->data.mouse.lLastX;
-                   m_mouseRelativeMovement.Y = raw->data.mouse.lLastY;
-
                    RECT rc;
                    RECT rc2;
                    POINT p1;
@@ -84,7 +80,6 @@ LRESULT MainWindow::HandleMessage(_In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARA
 
                    ClipCursor(&rc);
                }
-
            }
        }
        return DefWindowProc(m_hWnd, uMsg, wParam, lParam);
@@ -110,14 +105,6 @@ LRESULT MainWindow::HandleMessage(_In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARA
        case 'D':
            m_directions.bRight = TRUE;
            break;
-       case 'e':
-       case 'E':
-           m_directions.bUp = TRUE;
-           break;
-       case 'q':
-       case 'Q':
-           m_directions.bDown = TRUE;
-           break;
        default:
            break;
        }
@@ -141,25 +128,9 @@ LRESULT MainWindow::HandleMessage(_In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARA
        case 'D':
            m_directions.bRight = FALSE;
            break;
-       case 'e':
-       case 'E':
-           m_directions.bUp = FALSE;
-           break;
-       case 'q':
-       case 'Q':
-           m_directions.bDown = FALSE;
-           break;
-
        default:
            break;
        }
-       break;
-
-   case WM_RBUTTONDOWN:
-       m_bMouseRightClick = TRUE;
-       break;
-   case WM_RBUTTONUP:
-       m_bMouseRightClick = FALSE;
        break;
 
     default:

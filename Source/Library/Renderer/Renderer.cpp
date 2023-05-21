@@ -12,7 +12,7 @@ Renderer::Renderer()
     , m_renderTargetView()
     , m_depthStencil()
     , m_depthStencilView()
-    , m_camera(XMVectorSet(0.0f, 4.0f, -22.0f, 0.0f))
+    , m_camera(XMVectorSet(0.0f, 15.0f, -25.0f, 0.0f))
     , m_projection()
     , m_renderables()
     , m_aPointLights()
@@ -302,6 +302,7 @@ HRESULT Renderer::AddPixelShader(_In_ PCWSTR pszPixelShaderName, _In_ const std:
 void Renderer::HandleInput(_In_ const InputDirections& directions, _In_ const MouseRelativeMovement& mouseRelativeMovement, const BOOL& mouseRightClick, _In_ FLOAT deltaTime)
 {
     m_camera.HandleInput(directions, mouseRelativeMovement, mouseRightClick, deltaTime);
+    m_character->HandleInput(directions, deltaTime);
 }
 
 void Renderer::Update(_In_ FLOAT deltaTime)
@@ -418,6 +419,11 @@ void Renderer::Render()
 
     // Present the information rendered to the back buffer to the front buffer (the screen)
     m_swapChain->Present(0, 0);
+}
+
+void Renderer::SetCharacter(_In_ const std::shared_ptr<Character>& character)
+{
+    m_character = character;
 }
 
 HRESULT Renderer::SetVertexShaderOfRenderable(_In_ PCWSTR pszRenderableName, _In_ PCWSTR pszVertexShaderName)
