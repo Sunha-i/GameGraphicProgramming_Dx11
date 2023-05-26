@@ -7,10 +7,11 @@
 class Texture
 {
 public:
+	Texture() = delete;
 	Texture(_In_ const std::filesystem::path& filePath);
-	~Texture() = default;
+	virtual ~Texture() = default;
 
-	HRESULT Initialize(_In_ ID3D11Device* pDevice, _In_ ID3D11DeviceContext* pImmediateContext);
+	virtual HRESULT Initialize(_In_ ID3D11Device* pDevice, _In_ ID3D11DeviceContext* pImmediateContext);
 
 	ComPtr<ID3D11ShaderResourceView>& GetTextureResourceView();
 	ComPtr<ID3D11SamplerState>& GetSamplerState();

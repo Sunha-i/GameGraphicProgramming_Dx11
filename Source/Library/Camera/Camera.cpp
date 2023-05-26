@@ -7,16 +7,15 @@ Camera::Camera(_In_ const XMVECTOR& position)
     , m_moveLeftRight(0.0f)
     , m_moveBackForward(0.0f)
     , m_movementSpeed(10.0f)
-    , m_rotationSpeed(0.002f)
     , m_cameraForward(DEFAULT_FORWARD)
     , m_cameraRight(DEFAULT_RIGHT)
     , m_cameraUp(DEFAULT_UP)
+    , m_target(DEFAULT_TARGET)
     , m_eye(position)
-    , m_at(DEFAULT_TARGET)
+    , m_at(position + m_target)
     , m_up(m_cameraUp)
     , m_rotation()
     , m_view(XMMatrixLookAtLH(m_eye, m_at, m_up))
-    , m_target(DEFAULT_TARGET)
 {
 }
 
@@ -45,7 +44,7 @@ ComPtr<ID3D11Buffer>& Camera::GetConstantBuffer()
     return m_cbChangeOnCameraMovement;
 }
 
-void Camera::HandleInput(_In_ const InputDirections& directions, _In_ const MouseRelativeMovement& mouseRelativeMovement, const BOOL& mouseRightClick, _In_ FLOAT deltaTime)
+void Camera::HandleInput(_In_ const InputDirections& directions, _In_ FLOAT deltaTime)
 {
     if (directions.bFront)
     {
@@ -88,11 +87,6 @@ void Camera::Update(_In_ FLOAT deltaTime)
 {
     m_at = XMVector3Normalize(m_target);
 
-    XMMATRIX rotateYTempMatrix = XMMatrixRotationY(m_yaw);
-
-    m_cameraRight = XMVector3TransformCoord(DEFAULT_RIGHT, rotateYTempMatrix);
-    m_cameraForward = XMVector3TransformCoord(DEFAULT_FORWARD, rotateYTempMatrix);
-
     m_eye += m_moveLeftRight * m_cameraRight;
     m_eye += m_moveBackForward * m_cameraForward;
 
@@ -100,6 +94,7 @@ void Camera::Update(_In_ FLOAT deltaTime)
     m_moveBackForward = 0.0f;
 
     m_at = m_eye + m_at;
+    m_up = m_cameraUp;
 
     m_view = XMMatrixLookAtLH(m_eye, m_at, m_up);
 }

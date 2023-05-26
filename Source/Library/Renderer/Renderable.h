@@ -6,7 +6,7 @@
 #include "Shader/VertexShader.h"
 
 #include "Renderer/DataTypes.h"
-#include "Material/Material.h"
+#include "Texture/Material.h"
 
 class Renderable
 {
@@ -29,8 +29,6 @@ protected:
 
 public:
 	Renderable(_In_ const XMFLOAT4& outputColor);
-	Renderable(const Renderable& other) = delete;
-	Renderable(Renderable&& other) = delete;
 	Renderable() = default;
 	virtual ~Renderable() = default;
 
@@ -51,8 +49,9 @@ public:
 	const XMMATRIX& GetWorldMatrix() const;
 	const XMFLOAT4& GetOutputColor() const;
 	BOOL HasTexture() const;
-	const Material& GetMaterial(UINT uIndex);
-	const BasicMeshEntry& GetMesh(UINT uIndex);
+
+	const Material& GetMaterial(UINT uIndex) const;
+	const BasicMeshEntry& GetMesh(UINT uIndex) const;
 
 	void RotateX(_In_ FLOAT angle);
 	void RotateY(_In_ FLOAT angle);
@@ -73,7 +72,7 @@ protected:
 	virtual const WORD* getIndices() const = 0;
 
 	HRESULT initialize(
-		_In_ ID3D11Device* pDevice, 
+		_In_ ID3D11Device* pDevice,
 		_In_ ID3D11DeviceContext* pImmediateContext
 	);
 

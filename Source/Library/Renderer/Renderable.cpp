@@ -1,7 +1,5 @@
 #include "Renderer/Renderable.h"
 
-#include "Texture/Texture.h"
-
 Renderable::Renderable(_In_ const XMFLOAT4& outputColor)
 	: m_vertexBuffer()
 	, m_indexBuffer()
@@ -119,16 +117,16 @@ BOOL Renderable::HasTexture() const
 	}
 }
 
-const Material& Renderable::GetMaterial(UINT uIndex)
+const Material& Renderable::GetMaterial(UINT uIndex) const
 {
-	assert(uIndex < GetNumMaterials());
+	assert(uIndex < m_aMaterials.size());
 
 	return m_aMaterials[uIndex];
 }
 
-const Renderable::BasicMeshEntry& Renderable::GetMesh(UINT uIndex)
+const Renderable::BasicMeshEntry& Renderable::GetMesh(UINT uIndex) const
 {
-	assert(uIndex < GetNumMeshes());
+	assert(uIndex < m_aMeshes.size());
 
 	return m_aMeshes[uIndex];
 }

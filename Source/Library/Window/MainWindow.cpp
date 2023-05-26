@@ -42,50 +42,6 @@ LRESULT MainWindow::HandleMessage(_In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARA
         PostQuitMessage(0);
         return 0;
 
-   case WM_INPUT:
-   {
-       UINT dataSize = 0u;
-
-       GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, nullptr, &dataSize, sizeof(RAWINPUTHEADER));
-
-       if (dataSize > 0)
-       {
-           std::unique_ptr<BYTE[]> rawData = std::make_unique<BYTE[]>(dataSize);
-           if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam), RID_INPUT, rawData.get(), &dataSize, sizeof(RAWINPUTHEADER)))
-           {
-               RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(rawData.get());
-
-               if (raw->header.dwType == RIM_TYPEMOUSE)
-               {
-                   RECT rc;
-                   RECT rc2;
-                   POINT p1;
-                   POINT p2;
-
-                   GetWindowRect(m_hWnd, &rc2);
-                   GetClientRect(m_hWnd, &rc);
-
-                   p1.x = rc.left;
-                   p1.y = rc.top;
-                   p2.x = rc.right;
-                   p2.y = rc.bottom;
-
-                   ClientToScreen(m_hWnd, &p1);
-                   ClientToScreen(m_hWnd, &p2);
-
-                   rc.left = p1.x;
-                   rc.top = rc2.top;
-                   rc.right = p2.x;
-                   rc.bottom = p2.y;
-
-                   ClipCursor(&rc);
-               }
-           }
-       }
-       return DefWindowProc(m_hWnd, uMsg, wParam, lParam);
-   }
-
-
    case WM_KEYDOWN:
        switch (wParam)
        {
@@ -128,6 +84,7 @@ LRESULT MainWindow::HandleMessage(_In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARA
        case 'D':
            m_directions.bRight = FALSE;
            break;
+
        default:
            break;
        }
@@ -142,19 +99,4 @@ LRESULT MainWindow::HandleMessage(_In_ UINT uMsg, _In_ WPARAM wParam, _In_ LPARA
 const InputDirections& MainWindow::GetDirections() const
 {
     return m_directions;
-}
-
-const MouseRelativeMovement& MainWindow::GetMouseRelativeMovement() const
-{
-    return m_mouseRelativeMovement;
-}
-
-const BOOL& MainWindow::GetMouseRightClick() const
-{
-    return m_bMouseRightClick;
-}
-
-void MainWindow::ResetMouseMovement()
-{
-    memset(&m_mouseRelativeMovement, 0, sizeof(MouseRelativeMovement));
 }
