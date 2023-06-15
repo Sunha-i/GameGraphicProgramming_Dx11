@@ -25,6 +25,12 @@ struct AnimationData
 	XMFLOAT4 aBoneWeights;
 };
 
+struct NormalData
+{
+	XMFLOAT3 Tangent;
+	XMFLOAT3 Bitangent;
+};
+
 struct CBChangeOnCameraMovement
 {
 	XMMATRIX View;
@@ -38,6 +44,7 @@ struct CBChangeEveryFrame
 {
 	XMMATRIX World;
 	XMFLOAT4 OutputColor;
+	BOOL HasNormalMap;
 };
 struct CBLights
 {
@@ -56,4 +63,12 @@ struct InputDirections
 	BOOL bBack;
 	BOOL bLeft;
 	BOOL bRight;
+	BOOL bUp;
+	BOOL bDown;
+};
+
+struct MouseRelativeMovement
+{
+	LONG X;
+	LONG Y;
 };

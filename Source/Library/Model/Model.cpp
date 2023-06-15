@@ -7,7 +7,7 @@
 XMMATRIX ConvertMatrix(_In_ const aiMatrix4x4& matrix)
 {
     return XMMATRIX(
-        matrix.a1,
+        matrix.a1, 
         matrix.b1,
         matrix.c1,
         matrix.d1,
@@ -51,6 +51,9 @@ Model::Model(_In_ const std::filesystem::path& filePath)
 {
 }
 
+/*-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+TODO: Model::Initialize()
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-*/
 HRESULT Model::Initialize(_In_ ID3D11Device* pDevice, _In_ ID3D11DeviceContext* pImmediateContext)
 {
     HRESULT hr = S_OK;
@@ -64,7 +67,7 @@ HRESULT Model::Initialize(_In_ ID3D11Device* pDevice, _In_ ID3D11DeviceContext* 
 
     if (m_pScene)
     {
-        // Calculate global Inverse Transform
+        // global Inverse Transform 계산
         m_globalInverseTransform = ConvertMatrix(m_pScene->mRootNode->mTransformation);
         m_globalInverseTransform = XMMatrixInverse(nullptr, m_globalInverseTransform);
         hr = initFromScene(pDevice, pImmediateContext, m_pScene, m_filePath);
@@ -78,6 +81,12 @@ HRESULT Model::Initialize(_In_ ID3D11Device* pDevice, _In_ ID3D11DeviceContext* 
         OutputDebugStringA(sm_pImporter->GetErrorString());
         OutputDebugString(L"\n");
     }
+
+    /*-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+    TODO: Animation buffer (Animation Data) 추가
+
+    hint: .ByteWidth = static_cast<UINT>(sizeof(AnimationData) * m_aAnimationData.size()) 사용
+    -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-*/
 
     // Create the animation buffer
     D3D11_BUFFER_DESC bd = {};
@@ -95,6 +104,10 @@ HRESULT Model::Initialize(_In_ ID3D11Device* pDevice, _In_ ID3D11DeviceContext* 
         return hr;
     }
 
+    /*-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+    TODO: CBSkinning Constant buffer 생성
+    -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-*/
+
     bd.Usage = D3D11_USAGE_DEFAULT;
     bd.ByteWidth = static_cast<UINT>(sizeof(CBSkinning));
     bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -109,13 +122,16 @@ HRESULT Model::Initialize(_In_ ID3D11Device* pDevice, _In_ ID3D11DeviceContext* 
     return hr;
 }
 
+/*-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+TODO: Model::Update()
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-*/
 void Model::Update(_In_ FLOAT deltaTime)
 {
     m_timeSinceLoaded += deltaTime;
 
     if (m_pScene->HasAnimations())
     {
-        for (BoneInfo& boneInfo : m_aBoneInfo)
+        for (BoneInfo& boneInfo : m_aBoneInfo)  
         {
             boneInfo.FinalTransformation = XMMatrixIdentity();
         }
@@ -278,6 +294,9 @@ void Model::initAllMeshes(_In_ const aiScene* pScene)
     }
 }
 
+/*-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+TODO: Model::initFromScene 수정
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-*/
 HRESULT Model::initFromScene(
     _In_ ID3D11Device* pDevice,
     _In_ ID3D11DeviceContext* pImmediateContext,
@@ -307,6 +326,12 @@ HRESULT Model::initFromScene(
 
     for (size_t i = 0; i < m_aVertices.size(); ++i)
     {
+        /*-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+        TODO: m_aAnimationData에 AnimationData 자료형으로 데이터 추가.
+
+        hint: m_aBoneData.at(i)로 접근.
+        -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-*/
+
         m_aAnimationData.push_back(
             AnimationData
             {
@@ -356,11 +381,13 @@ HRESULT Model::initMaterials(
         const aiMaterial* pMaterial = pScene->mMaterials[i];
 
         loadTextures(pDevice, pImmediateContext, parentDirectory, pMaterial, i);
+
         loadColors(pMaterial, i);
     }
 
     return hr;
 }
+
 
 void Model::initMeshBones(_In_ UINT uMeshIndex, _In_ const aiMesh* pMesh)
 {
@@ -396,6 +423,7 @@ void Model::initMeshSingleBone(_In_ UINT uMeshIndex, _In_ const aiBone* pBone)
         m_aBoneData[uGlobalVertexId].AddBoneData(uBoneId, vertexWeight.mWeight);
     }
 }
+
 
 void Model::initSingleMesh(_In_ UINT uMeshIndex, _In_ const aiMesh* pMesh)
 {
@@ -466,6 +494,13 @@ void Model::interpolatePosition(_Inout_ XMFLOAT3& outTranslate, _In_ FLOAT anima
     outTranslate = ConvertVector3dToFloat3(start + factor * delta);
 }
 
+/*-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+TODO: Model::interpolateRotation() 구현
+
+hint: interpolatePosition() 함수 참고하여, rotation으로 바꾸어 구현.
+ConvertQuaternionToVector(), findRoataion() 등 사용.
+Quatrenion으로 구현.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-*/
 void Model::interpolateRotation(_Inout_ XMVECTOR& outQuaternion, _In_ FLOAT animationTimeTicks, _In_ const aiNodeAnim* pNodeAnim)
 {
     if (pNodeAnim->mNumRotationKeys == 1)
@@ -492,6 +527,9 @@ void Model::interpolateRotation(_Inout_ XMVECTOR& outQuaternion, _In_ FLOAT anim
     outQuaternion = ConvertQuaternionToVector(quaternion.Normalize());
 }
 
+/*-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+TODO: Model::interpolateScaling() 구현
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-*/
 void Model::interpolateScaling(_Inout_ XMFLOAT3& outScale, _In_ FLOAT animationTimeTicks, _In_ const aiNodeAnim* pNodeAnim)
 {
     if (pNodeAnim->mNumScalingKeys == 1)
@@ -675,6 +713,9 @@ HRESULT Model::loadTextures(_In_ ID3D11Device* pDevice, _In_ ID3D11DeviceContext
     return hr;
 }
 
+/*-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
+TODO: Model::readNodeHierarchy() 구현
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-*/
 void Model::readNodeHierarchy(_In_ FLOAT animationTimeTicks, _In_ const aiNode* pNode, _In_ const XMMATRIX& parentTransform)
 {
     PCSTR pszNodeName = pNode->mName.data;
@@ -699,7 +740,7 @@ void Model::readNodeHierarchy(_In_ FLOAT animationTimeTicks, _In_ const aiNode* 
         nodeTransformation = scalingMatrix * rotationMatrix * translationMatrix;
     }
     XMMATRIX globalTransformation = nodeTransformation * parentTransform;
-
+    
     if (m_boneNameToIndexMap.contains(pszNodeName))
     {
         UINT uBoneIndex = m_boneNameToIndexMap[pszNodeName];

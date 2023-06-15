@@ -23,7 +23,7 @@ public:
 	HRESULT AddVertexShader(_In_ PCWSTR pszVertexShaderName, _In_ const std::shared_ptr<VertexShader>& vertexShader);
 	HRESULT AddPixelShader(_In_ PCWSTR pszPixelShaderName, _In_ const std::shared_ptr<PixelShader>& pixelShader);
 
-	void HandleInput(_In_ const InputDirections& directions, _In_ FLOAT deltaTime);
+	void HandleInput(_In_ const InputDirections& directions, _In_ const MouseRelativeMovement& mouseRelativeMovement, const BOOL& mouseRightClick, _In_ FLOAT deltaTime);
 	void Update(_In_ FLOAT deltaTime);
 	void Render();
 
@@ -58,4 +58,6 @@ private:
 	std::shared_ptr<PointLight> m_aPointLights[NUM_LIGHTS];
 	std::unordered_map<PCWSTR, std::shared_ptr<VertexShader>> m_vertexShaders;
 	std::unordered_map<PCWSTR, std::shared_ptr<PixelShader>> m_pixelShaders;
+
+	std::shared_ptr<Texture> m_invalidTexture;
 };
